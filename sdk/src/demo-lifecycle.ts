@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import {
   Connection,
   Keypair,
@@ -6,8 +7,7 @@ import {
   sendAndConfirmTransaction,
   SystemProgram,
   Transaction,
-} from "@solana/web3.js";
-import {
+} from "@solana/web3.js";import {
   createAssociatedTokenAccount,
   createInitializeMintInstruction,
   createMintToInstruction,
@@ -44,8 +44,24 @@ async function main() {
   const recipient = Keypair.generate();
 
   console.log("Funding wallets...");
+  // Fund from a local faucet keypair (test validator mints it with 1M SOL)
+  // instead of the RPC airdrop endpoint, which can be rate limited.
+  const faucetPath = process.env.FAUCET_KEYPAIR ?? "";
+  if (!faucetPath) {
+    throw new Error("FAUCET_KEYPAIR env var is required");
+  }
+  const funder = Keypair.fromSecretKey(
+    Buffer.from(JSON.parse(fs.readFileSync(faucetPath, "utf8")))
+  );
   for (const kp of [payer, sender, recipient]) {
-    const sig = await connection.requestAirdrop(kp.publicKey, 2 * LAMPORTS_PER_SOL);
+    const fundTx = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: funder.publicKey,
+        toPubkey: kp.publicKey,
+        lamports: 2 * LAMPORTS_PER_SOL,
+      })
+    );
+    const sig = await sendAndConfirmTransaction(connection, fundTx, [funder]);
     await connection.confirmTransaction(sig, "confirmed");
   }
 
