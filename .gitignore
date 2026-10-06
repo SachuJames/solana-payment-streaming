@@ -1,0 +1,23 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Solana
+.test-ledger/
+*.so
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Keys: never commit keypairs
+*-keypair.json
+**/*-keypair.json
+id.json
