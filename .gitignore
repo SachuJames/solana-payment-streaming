@@ -21,3 +21,6 @@ dist/
 *-keypair.json
 **/*-keypair.json
 id.json
+
+# Build artifact of scripts/udp_sendto_shim.c (built by demo.sh when needed)
+scripts/udp_shim.so
