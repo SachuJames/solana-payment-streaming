@@ -77,7 +77,7 @@ fn system_create_account(
         program_id: SYSTEM_PROGRAM_ID,
         accounts: vec![
             AccountMeta::new(*from, true),
-            AccountMeta::new(*to, false),
+            AccountMeta::new(*to, true),
         ],
         data,
     }
@@ -343,6 +343,7 @@ fn load_stream(
             stream.recipient.as_ref(),
             stream.mint.as_ref(),
             nonce_bytes.as_ref(),
+            core::slice::from_ref(&stream.bump),
         ],
         program_id,
     )

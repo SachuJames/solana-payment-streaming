@@ -1,10 +1,12 @@
 use solana_clock::Clock;
-use solana_instruction::{AccountMeta, Instruction, InstructionError};
+use solana_instruction::{error::InstructionError, AccountMeta, Instruction};
 use solana_keypair::Keypair;
 use solana_message::Message;
-use solana_program::system_instruction;
 use solana_program_test::{processor, BanksClientError, ProgramTest, ProgramTestContext};
 use solana_pubkey::{pubkey, Pubkey};
+
+const SYSTEM_PROGRAM_ID: Pubkey =
+    pubkey!("11111111111111111111111111111111");
 use solana_signer::Signer;
 use solana_transaction::{Transaction, TransactionError};
 
@@ -64,8 +66,44 @@ async fn send_tx(
     ctx.banks_client.process_transaction(tx).await
 }
 
+fn system_transfer(from: &Pubkey, to: &Pubkey, lamports: u64) -> Instruction {
+    let mut data = Vec::with_capacity(12);
+    data.extend_from_slice(&2u32.to_le_bytes());
+    data.extend_from_slice(&lamports.to_le_bytes());
+    Instruction {
+        program_id: SYSTEM_PROGRAM_ID,
+        accounts: vec![
+            AccountMeta::new(*from, true),
+            AccountMeta::new(*to, false),
+        ],
+        data,
+    }
+}
+
+fn system_create_account(
+    from: &Pubkey,
+    to: &Pubkey,
+    lamports: u64,
+    space: u64,
+    owner: &Pubkey,
+) -> Instruction {
+    let mut data = Vec::with_capacity(52);
+    data.extend_from_slice(&0u32.to_le_bytes());
+    data.extend_from_slice(&lamports.to_le_bytes());
+    data.extend_from_slice(&space.to_le_bytes());
+    data.extend_from_slice(owner.as_ref());
+    Instruction {
+        program_id: SYSTEM_PROGRAM_ID,
+        accounts: vec![
+            AccountMeta::new(*from, true),
+            AccountMeta::new(*to, true),
+        ],
+        data,
+    }
+}
+
 async fn airdrop_sol(ctx: &mut ProgramTestContext, to: &Pubkey, lamports: u64) {
-    let ix = system_instruction::transfer(&ctx.payer.pubkey(), to, lamports);
+    let ix = system_transfer(&ctx.payer.pubkey(), to, lamports);
     send_tx(ctx, &[ix], &[]).await.unwrap();
 }
 
@@ -75,7 +113,7 @@ async fn create_mint(ctx: &mut ProgramTestContext, authority: &Pubkey, decimals:
     let space = 82usize;
     let lamports = rent.minimum_balance(space);
     let ixs = [
-        system_instruction::create_account(
+        system_create_account(
             &ctx.payer.pubkey(),
             &mint.pubkey(),
             lamports,
@@ -105,7 +143,7 @@ async fn create_token_account(
     let space = 165usize;
     let lamports = rent.minimum_balance(space);
     let ixs = [
-        system_instruction::create_account(
+        system_create_account(
             &ctx.payer.pubkey(),
             &acct.pubkey(),
             lamports,
@@ -200,7 +238,7 @@ fn ix_create_stream(
             AccountMeta::new_readonly(*mint, false),
             AccountMeta::new(*sender_tokens, false),
             AccountMeta::new_readonly(spl_token::ID, false),
-            AccountMeta::new_readonly(solana_program::system_program::ID, false),
+            AccountMeta::new_readonly(SYSTEM_PROGRAM_ID, false),
             AccountMeta::new_readonly(solana_program::sysvar::rent::ID, false),
         ],
         data,
